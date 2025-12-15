@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI News Aggregator</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
+        h1 { text-align: center; color: #333; }
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .categories { display: flex; gap: 15px; margin-bottom: 15px; }
+        label { cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: bold; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; }
+
+        #news-container { display: flex; flex-direction: column; gap: 15px; }
+        .news-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 5px solid #007bff; }
+        .news-meta { font-size: 0.85em; color: #666; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .news-title { font-size: 1.2em; margin: 0 0 10px 0; }
+        .news-title a { text-decoration: none; color: #333; }
+        .news-title a:hover { color: #007bff; }
+        .tags { display: flex; gap: 5px; flex-wrap: wrap; }
+        .tag { background-color: #eef2f6; color: #333; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; border: 1px solid #dbe2e8; }
+        .tag::before { content: "#"; color: #007bff; }
+
+        .loader { text-align: center; display: none; margin: 20px; }
+    </style>
+</head>
+<body>
+
+<h1>AI News Feed (Gemini Powered)</h1>
+
+
+<div class="controls">
+    <h3>Выберите категории (Select Categories):</h3>
+    <div class="categories">
+        <label><input type="checkbox" value="technology" checked> Technology</label>
+        <label><input type="checkbox" value="science" checked> Science</label>
+        <label><input type="checkbox" value="business" checked> Business</label>
+    </div>
+    <button id="loadBtn" onclick="fetchNews()">Load News</button>
+</div>
+
+<div id="loader" class="loader">
+    Generating tags via Gemini... Please wait...
+</div>
+
+<div id="news-container"></div>
+
+<script>
+    async function fetchNews() {
+        const container = document.getElementById('news-container');
+        const loader = document.getElementById('loader');
+        const btn = document.getElementById('loadBtn');
+
+
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+        const selectedCategories = Array.from(checkboxes).map(cb => cb.value);
+
+        if (selectedCategories.length === 0) {
+            alert("Please select at least one category.");
+            return;
+        }
+
+
+        container.innerHTML = '';
+        loader.style.display = 'block';
+        btn.disabled = true;
+        btn.innerText = 'Processing...';
+
+        try {
+
+            const response = await fetch('/api/news', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categories: selectedCategories })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                container.innerHTML = `<p style="color:red">Error: ${data.error}</p>`;
+                return;
+            }
+
+
+            data.forEach(news => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+
+
+                if(news.category === 'science') card.style.borderLeftColor = '#28a745';
+                if(news.category === 'business') card.style.borderLeftColor = '#ffc107';
+
+                const tagsHtml = news.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+
+                card.innerHTML = `
+                        <div class="news-meta">
+                            <span style="text-transform: capitalize; font-weight:bold;">${news.category}</span>
+                            <span>${new Date(news.pubDate).toLocaleDateString()}</span>
+                        </div>
+                        <h3 class="news-title"><a href="${news.link}" target="_blank">${news.title}</a></h3>
+                        <div class="tags">${tagsHtml}</div>
+                    `;
+                container.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = '<p>Failed to load news.</p>';
+        } finally {
+            loader.style.display = 'none';
+            btn.disabled = false;
+            btn.innerText = 'Load News';
+        }
+    }
+</script>
+</body>
+</html>
